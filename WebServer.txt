@@ -1,0 +1,49 @@
+// Author   : Christian Dunn
+// Date     : October 7th, 2016
+// Purpose  : To create a simple TCP webserver that gets requested
+//            resources from the localhost and displays in a 
+//            web browser.
+// Compiler : NetBeans IDE 8.1
+
+import java.io.*   ;
+import java.net.*  ;
+import java.util.* ;
+
+// Class   : WebServer
+// Purpose : To connect to single socket used in multithreading
+//           to process requested file from the client.
+public final class WebServer 
+    {
+        // Method     : main
+        // Purpose    : To compile operations and connect to socket
+        // Parameters : String args[]             -> allow for arguments within main
+        //              int server_Port           -> integer to old port number of server
+        //              ServerSocket serverSocket -> socket object to allocate port and request
+        //              Socket connectionSocket   -> socket to hold client information
+        //              HttpRequest Request       -> Http request to store request from user
+        //              Thread thread             -> Thread to hold user requests while connected to server
+        public static void main(String args[]) throws Exception 
+            {
+                int          server_Port  = 6789                          ; // Set server port number 
+                ServerSocket serverSocket = new ServerSocket(server_Port) ; // Create socket for server port
+                
+                System.out.println("The server is listening...")          ; // Indicate to user that the server is connected
+                
+                // Infinite while loop to open server until application is closed
+                while(true)
+                {
+                    try
+                        {
+                            Socket      connectionSocket = serverSocket.accept()             ; // Listen for a TCP connection request
+                            HttpRequest request          = new HttpRequest(connectionSocket) ; // Construct an object to process the HTTP request message
+                            Thread      thread           = new Thread(request)               ; // Create a new thread to process the request
+                            thread.start()                                                   ; // Start the thread
+                        } // end try
+                    catch(IOException e)
+                        {
+                            System.err.print(e); // If IOException is thrown, print out exception
+                        } // end catch
+                } // end while
+                
+            } // end main
+    } // end class WebServer

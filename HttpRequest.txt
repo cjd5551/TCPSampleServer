@@ -1,0 +1,156 @@
+// Author   : Christian Dunn
+// Date     : October 7th, 2016
+// Purpose  : To create a simple TCP webserver that gets requested
+//            resources from the localhost and displays in a 
+//            web browser.
+// Compiler : NetBeans IDE 8.1
+
+import java.io.*   ;
+import java.net.*  ;
+import java.util.* ;
+
+// Class   : HttpRequest
+// Purpose : To allow for the thread's constructor to be implemented
+//           within the runnable interface
+final class HttpRequest implements Runnable 
+    {
+        final static String CRLF   = "\r\n"; // Terminate each line of the server's response message
+        Socket              socket         ; // Create object to hold server socket 
+        
+        // Method     : HttpRequest
+        // Purpose    : Default constructor to accept socket from main
+        // Parameters : socket -> stores server socket data
+        public HttpRequest (Socket socket)
+            { this.socket = socket; } // end HttpRequest
+        
+        // Method     : run
+        // Purpose    : Implement the run method of the runnable interface
+        // Parameters : Exception e -> used to catch exception thrown from processRequest
+        public void run() 
+            {
+                try
+                    { processRequest(); } // end try
+                catch(Exception e)
+                    { System.out.println(e); } // end catch
+            } // end run
+        
+        // Method     : processRequest
+        // Purpose    : To obtain references to the socket's input and output
+        //              streams. Then wrap input and buffered reader filters around
+        //              the input stream.
+        // Parameters : InputStream is         -> Reference to socket's input stream
+        //              DataOutputStream os    -> Reference to socket's output stream
+        //              BufferedReader br      -> Extract characters from input stream
+        //              String request         -> Get the request line of the HTTP request message
+        //              String headerLine      -> Get the header lines
+        //              StringTokenizer tokens -> Extract file name from the request line
+        //              String fileName        -> Store the file name from request line
+        //              FileInputStream fis    -> Open the requested file
+        //              Boolean exists         -> Test whether file exists in server 
+        //              String statusLine      -> Response, status
+        //              String contentTypeLine -> Response, content type
+        //              String entityBody      -> Response, body
+        private void processRequest() throws Exception
+            {
+                InputStream      is = socket.getInputStream()         ; // Get input stream from request message
+                DataOutputStream os = new DataOutputStream(
+                                        socket.getOutputStream())     ; // Get output stream from request message
+                BufferedReader br   = new BufferedReader(
+                                        new InputStreamReader(
+                                            socket.getInputStream())) ; // Read the input in from request message
+                String request      = br.readLine()                   ; // Store request message in String variable
+                System.out.println()        ; // end line
+                System.out.println(request) ; // Print message request 
+                
+                String headerLine = null ; // String to hold header lines
+                
+                // While loop to read in header lines and print
+                while((headerLine = br.readLine()).length() != 0)
+                    { System.out.println(headerLine); } // end while
+                
+                StringTokenizer tokens = new StringTokenizer(request) ; // Create token from request message
+                tokens.nextToken()                                    ; // Skip GET method 
+                String fileName        = tokens.nextToken() ; // fileName = request message
+                       fileName        = "." + fileName     ; // Prepend so that file is within current directory
+                FileInputStream fis    = null               ; // Stream to open file
+                boolean         exists = true               ; // Determine whether file exists
+                
+                try
+                    { fis = new FileInputStream(fileName); } // end try
+                catch (FileNotFoundException e)
+                    { exists = false; } // end catch
+                
+                String statusLine      = null ; // Response variable declaration
+                String contentTypeLine = null ; // Response variable declaration
+                String entityBody      = null ; // Response variable declaration
+                
+                // If statement to determine if file exists in server
+                if (exists)
+                    {
+                        statusLine      = "Responding to existing file..." ; // If file exists status is responding
+                        contentTypeLine = "Content-type: " + 
+                                contentType(fileName) + CRLF               ; // If file exists content type is that of the file
+                    } // end if
+                else
+                    {
+                        statusLine      = "File doesn't exist\n"                ; // If file does not exist status prompt that file doesn't exist
+                        contentTypeLine = "Content-type: no contents\n"         ; // If file does not exist there is no content
+                        entityBody      = "<HTML>" + "<HEAD><TITLE>Not Found"
+                                          + "</TITLE></HEAD>"
+                                          + "<BODY>404 Not Found</BODY></HTML>" ; // If file does not exist indicate error 404
+                    }
+                        
+                    os.writeBytes(statusLine)      ; // Output statusLine
+                    os.writeBytes(contentTypeLine) ; // Output contentTypeLine
+                    os.writeBytes(CRLF)            ; // Output CRLF
+                        
+                    // If statement to send bytes to outstream if file exists
+                    if (exists)
+                        {
+                            sendBytes(fis, os) ; // Send the entity body
+                            fis.close()        ; // Close input stream
+                        } // end if
+                    else
+                    os.writeBytes(entityBody); // end else
+                    
+                
+                os.close()     ; // Close output stream
+                br.close()     ; // Close buffered reader
+                socket.close() ; // Close server socket
+            } // end processRequest
+        
+        // Method     : sendBytes
+        // Purpose    : Send requested file to the client end system
+        // Parameters : FileInputStream fis -> Holds input stream passed from client
+        //              OutputStream os     -> Holds output stream passed from server
+        //              byte[] buffer       -> Holds bytes on the way to the socket
+        //              int bytes           -> Cycle until end of file
+        private static void sendBytes(FileInputStream fis,
+                                OutputStream os) throws Exception
+            {
+                byte[] buffer = new byte[1024] ; // 1k buffer to hold bytes on their way to the socket
+                int    bytes  = 0              ; // Holds number of bytes in array to write
+                
+                // While loop to copy requested file into the socket's output stream
+                while((bytes = fis.read(buffer)) != -1)
+                    os.write(buffer, 0, bytes); // end while
+            } // end sendBytes
+        
+        // Method     : contentType
+        // Purpose    : To test the type of file to output correct content type
+        // Parameters : String fileName -> file name data passed in from processes
+        private static String contentType(String fileName)
+            {
+                if ((fileName.endsWith(".html"))
+                        || (fileName.endsWith(".htm")))
+                    return "text/html"; // end if
+                if (fileName.endsWith(".gif")
+                        || fileName.endsWith(".GIF"))
+                    return "image/gif"; // end if
+                if (fileName.endsWith(".jpeg"))
+                    return "image/jpeg"; // end if
+                return "application/octet-stream"; // return default case
+            } // end contentType
+        
+    } // end class HttpRequest
+
